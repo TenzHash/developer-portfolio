@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#121622" />
+      <stop offset="100%" stop-color="#07090e" />
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60a5fa" />
+      <stop offset="50%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#6366f1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="64" height="64" rx="16" fill="url(#bgGrad)" stroke="rgba(255,255,255,0.12)" stroke-width="1.5" />
+  <rect x="2.5" y="2.5" width="59" height="59" rx="14" fill="none" stroke="url(#glowGrad)" stroke-width="1.5" stroke-opacity="0.4" />
+
+  <!-- Terminal Code Caret '>' -->
+  <path d="M16 20L28 32L16 44" fill="none" stroke="url(#glowGrad)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Terminal Underscore '_' -->
+  <path d="M34 44H48" fill="none" stroke="#f8fafc" stroke-width="5" stroke-linecap="round" />
+</svg>
