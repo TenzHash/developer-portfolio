@@ -10,10 +10,29 @@ const modalTags = document.getElementById("modalTags");
 const modalSummary = document.getElementById("modalSummary");
 const modalActions = document.getElementById("modalActions");
 
+// Mobile Navigation Toggle
+const mobileMenuBtn = document.getElementById("mobileMenuBtn");
+const navLinks = document.getElementById("navLinks");
+
+if (mobileMenuBtn && navLinks) {
+  mobileMenuBtn.addEventListener("click", () => {
+    mobileMenuBtn.classList.toggle("open");
+    navLinks.classList.toggle("open");
+  });
+
+  // Close mobile drawer when clicking any link
+  navLinks.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", () => {
+      mobileMenuBtn.classList.remove("open");
+      navLinks.classList.remove("open");
+    });
+  });
+}
+
 let allProjects = [];
 let activeFilter = "all";
 
-// Helper: Check if URL is a video
+// Helper: Video URL Checker
 function isVideoUrl(url) {
   if (!url) return false;
   const cleanUrl = url.split("?")[0].toLowerCase();
@@ -26,7 +45,25 @@ function isVideoUrl(url) {
   );
 }
 
-// 1. Fetch & Load Projects
+// Helper: Normalize tags from any storage format
+function normalizeTags(rawTags) {
+  if (!rawTags) return [];
+  if (Array.isArray(rawTags)) {
+    return rawTags.map((t) => String(t).trim()).filter(Boolean);
+  }
+
+  let str = String(rawTags).trim();
+  if (str.startsWith("{") && str.endsWith("}")) {
+    str = str.slice(1, -1);
+  }
+
+  return str
+    .split(",")
+    .map((t) => t.replace(/["']/g, "").trim())
+    .filter(Boolean);
+}
+
+// 1. Fetch & Load Projects (Ordered by custom display_order)
 async function loadPublicProjects() {
   const { data: projects, error } = await db
     .from("projects")
@@ -100,7 +137,7 @@ function renderFilteredProjects() {
           }
           <div class="project-cover-overlay">
             <span class="project-view-badge">
-              ${mediaList.length > 1 ? `View Gallery (${mediaList.length} Items)` : "View Project Details"}
+              ${mediaList.length > 1 ? `View Gallery (${mediaList.length} Items)` : "View Details"}
             </span>
           </div>
           ${mediaList.length > 1 ? `<span class="media-count-indicator">${mediaList.length} Media</span>` : ""}
@@ -112,14 +149,15 @@ function renderFilteredProjects() {
         ? `<span class="project-cat-badge">${proj.category}</span>`
         : "";
 
+      const parsedTags = normalizeTags(proj.tags);
       const tagsElement =
-        proj.tags && proj.tags.length > 0
-          ? `<div class="project-tags">${proj.tags
+        parsedTags && parsedTags.length > 0
+          ? `<div class="project-tags">${parsedTags
               .slice(0, 4)
               .map((tag) => `<span class="tag-badge">${tag}</span>`)
               .join(
                 "",
-              )}${proj.tags.length > 4 ? `<span class="tag-badge">+${proj.tags.length - 4}</span>` : ""}</div>`
+              )}${parsedTags.length > 4 ? `<span class="tag-badge">+${parsedTags.length - 4}</span>` : ""}</div>`
           : "";
 
       return `
@@ -165,7 +203,7 @@ window.openProjectModal = function (projectId) {
       </div>
     `;
 
-    // Multi-item switcher strip
+    // Multi-item thumbnail strip
     if (mediaList.length > 1) {
       viewerHtml += `<div class="modal-thumb-strip">`;
       mediaList.forEach((url, i) => {
@@ -191,8 +229,9 @@ window.openProjectModal = function (projectId) {
   modalSummary.innerText =
     project.summary || "No detailed description available.";
 
-  if (project.tags && project.tags.length > 0) {
-    modalTags.innerHTML = project.tags
+  const parsedTags = normalizeTags(project.tags);
+  if (parsedTags && parsedTags.length > 0) {
+    modalTags.innerHTML = parsedTags
       .map((t) => `<span class="tag-badge">${t}</span>`)
       .join("");
     modalTags.style.display = "flex";
@@ -227,13 +266,12 @@ function renderMediaElement(url) {
   }
   return `
     <div class="image-container">
-      <img src="${url}" alt="Project full preview" class="modal-image" />
+      <img src="${url}" alt="Project preview" class="modal-image" />
     </div>
   `;
 }
 
 window.switchModalMedia = function (url, buttonEl) {
-  // Pause any currently playing video before switching
   const currentVideo = modalMedia.querySelector("video");
   if (currentVideo) currentVideo.pause();
 
@@ -284,8 +322,8 @@ function initScrollReveal() {
       });
     },
     {
-      threshold: 0.12,
-      rootMargin: "0px 0px -40px 0px",
+      threshold: 0.1,
+      rootMargin: "0px 0px -30px 0px",
     },
   );
 

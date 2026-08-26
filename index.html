@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Terrenze Josh B. | Web Developer • Virtual Assistant (WFH) • Graphic Designer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <title>Terrenze Josh Binamira | Web Developer • Virtual Assistant (WFH) • Graphic Designer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -16,15 +16,23 @@
   <div class="glow-bg glow-accent"></div>
 
   <div class="wrapper">
-    <!-- Navbar -->
+    <!-- Navbar with Mobile Toggle -->
     <header class="navbar">
-      <a href="index.html" class="logo">TERRENZE JOSH<span>.</span></a>
-      <nav class="nav-links">
-        <a href="#about">About</a>
-        <a href="#roles">Core Roles</a>
-        <a href="#skills">Skills & Tools</a>
-        <a href="#experience">Background</a>
-        <a href="#projects">Work & Feats</a>
+      <a href="index.html" class="logo">TERRENZE<span>.</span></a>
+      
+      <!-- Mobile Hamburger Button -->
+      <button id="mobileMenuBtn" class="mobile-menu-btn" aria-label="Toggle navigation menu">
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+      </button>
+
+      <nav id="navLinks" class="nav-links">
+        <a href="#about" class="nav-link">About</a>
+        <a href="#roles" class="nav-link">Core Roles</a>
+        <a href="#skills" class="nav-link">Skills & Tools</a>
+        <a href="#experience" class="nav-link">Background</a>
+        <a href="#projects" class="nav-link">Work & Feats</a>
         <a href="#contact" class="btn btn-secondary nav-btn">Hire Me</a>
         <a href="./admin/index.html" class="admin-link">
           Admin Console 
@@ -45,7 +53,7 @@
             Versatile <span class="highlight">Web Developer</span>, <span class="highlight">Virtual Assistant</span> & <span class="highlight">Graphic Designer</span>.
           </h1>
           <p class="hero-subtitle">
-            Hi, I'm <strong>Terrenze Josh B.</strong>, a proactive multi-skilled remote professional based in Legazpi, Philippines. I bridge the gap between building high-performance web systems, managing high-volume operational workflows, and delivering polished visual assets for fast-growing businesses.
+            Hi, I'm <strong>Terrenze Josh Binamira</strong>, a proactive multi-skilled remote professional based in Legazpi, Philippines. I bridge the gap between building high-performance web systems, managing high-volume operational workflows, and delivering polished visual assets for fast-growing businesses.
           </p>
           <div class="hero-cta">
             <a href="#projects" class="btn btn-primary">
@@ -292,20 +300,22 @@
       </div>
     </section>
 
-    <!-- Projects Section with Filter Tabs -->
+    <!-- Projects Section with Mobile Filter Scroller -->
     <section id="projects" class="content-section">
       <div class="section-header">
         <span class="section-badge">Proof of Work</span>
         <h2>Featured Projects & Feats</h2>
-        <p>Explore live applications, workflow management systems, and visual assets. Click any card to inspect full details and media.</p>
+        <p>Explore live applications, workflow management systems, and visual assets. Tap any card to inspect full details and media.</p>
       </div>
 
-      <!-- Filter Tabs Matching All 3 Roles -->
-      <div class="category-filters">
-        <button class="filter-btn active" data-filter="all">All Projects</button>
-        <button class="filter-btn" data-filter="Website & Web App Development">Website Development</button>
-        <button class="filter-btn" data-filter="Virtual Assistance & Operations">Virtual Assistance & Operations</button>
-        <button class="filter-btn" data-filter="Graphic Design & Branding">Graphic Design & Creative</button>
+      <!-- Filter Tabs (Horizontal touch scroll on mobile) -->
+      <div class="category-filters-wrapper">
+        <div class="category-filters">
+          <button class="filter-btn active" data-filter="all">All Projects</button>
+          <button class="filter-btn" data-filter="Website & Web App Development">Website Development</button>
+          <button class="filter-btn" data-filter="Virtual Assistance & Operations">Virtual Assistance & Operations</button>
+          <button class="filter-btn" data-filter="Graphic Design & Branding">Graphic Design & Creative</button>
+        </div>
       </div>
 
       <div id="projectGrid" class="project-grid">
