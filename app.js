@@ -28,18 +28,6 @@ if (mobileMenuBtn && navLinks) {
   });
 }
 
-// Smart Email Handler (Direct Browser Gmail on Desktop, Native App on Mobile)
-window.handleEmailClick = function (e) {
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  if (!isMobile) {
-    e.preventDefault();
-    window.open(
-      "https://mail.google.com/mail/?view=cm&fs=1&to=terrenzejoshbinamira@gmail.com",
-      "_blank",
-    );
-  }
-};
-
 let allProjects = [];
 let activeFilter = "all";
 
