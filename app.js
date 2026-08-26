@@ -10,7 +10,7 @@ const modalTags = document.getElementById("modalTags");
 const modalSummary = document.getElementById("modalSummary");
 const modalActions = document.getElementById("modalActions");
 
-// Mobile Navigation Toggle
+// Mobile Navigation Drawer Toggle
 const mobileMenuBtn = document.getElementById("mobileMenuBtn");
 const navLinks = document.getElementById("navLinks");
 
@@ -20,7 +20,6 @@ if (mobileMenuBtn && navLinks) {
     navLinks.classList.toggle("open");
   });
 
-  // Close mobile drawer when clicking any link
   navLinks.querySelectorAll("a").forEach((link) => {
     link.addEventListener("click", () => {
       mobileMenuBtn.classList.remove("open");
@@ -28,6 +27,18 @@ if (mobileMenuBtn && navLinks) {
     });
   });
 }
+
+// Smart Email Handler (Direct Browser Gmail on Desktop, Native App on Mobile)
+window.handleEmailClick = function (e) {
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (!isMobile) {
+    e.preventDefault();
+    window.open(
+      "https://mail.google.com/mail/?view=cm&fs=1&to=terrenzejoshbinamira@gmail.com",
+      "_blank",
+    );
+  }
+};
 
 let allProjects = [];
 let activeFilter = "all";
@@ -45,7 +56,7 @@ function isVideoUrl(url) {
   );
 }
 
-// Helper: Normalize tags from any storage format
+// Helper: Normalize tags from any storage format (Array, string, Postgres literal)
 function normalizeTags(rawTags) {
   if (!rawTags) return [];
   if (Array.isArray(rawTags)) {
