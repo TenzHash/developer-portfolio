@@ -1,0 +1,198 @@
+/* ==========================================================================
+   Motion & interactive features  (loads after styles.css)
+   Brand: Deep Navy #0A1F44 · Electric Blue #0066FF · Cyan #00E5FF · Cool White #F5F7FA
+   Everything here is disabled for visitors who prefer reduced motion.
+   ========================================================================== */
+
+/* ---------- Scroll progress bar ---------- */
+.scroll-progress {
+  position: fixed; top: 0; left: 0; width: 100%; height: 3px;
+  transform-origin: 0 50%; transform: scaleX(0);
+  background: linear-gradient(90deg, var(--cyan), var(--electric));
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.6);
+  z-index: 1100; pointer-events: none;
+}
+
+/* ---------- Hero: entrance + particle network ---------- */
+.hero { position: relative; }
+.hero > :not(.hero-canvas) { position: relative; z-index: 1; }
+.hero-canvas {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 0; pointer-events: none;
+  -webkit-mask-image: radial-gradient(ellipse 85% 85% at 50% 45%, #000 35%, transparent 100%);
+  mask-image: radial-gradient(ellipse 85% 85% at 50% 45%, #000 35%, transparent 100%);
+}
+
+@keyframes fxFadeUp { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
+@keyframes fxFadeLeft { from { opacity: 0; transform: translateX(34px); } to { opacity: 1; transform: none; } }
+.hero-content > * { animation: fxFadeUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.hero-content > *:nth-child(1) { animation-delay: 0.05s; }
+.hero-content > *:nth-child(2) { animation-delay: 0.15s; }
+.hero-content > *:nth-child(3) { animation-delay: 0.25s; }
+.hero-content > *:nth-child(4) { animation-delay: 0.38s; }
+.hero-content > *:nth-child(5) { animation-delay: 0.5s; }
+.hero-content > *:nth-child(6) { animation-delay: 0.62s; }
+.hero-avatar-wrapper { animation: fxFadeLeft 1s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both; will-change: transform; }
+
+/* Tagline: word-by-word reveal */
+.brand-tagline .tw {
+  display: inline-block; opacity: 0; transform: translateY(0.7em);
+  animation: fxWord 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: calc(0.45s + var(--i, 0) * 0.2s);
+}
+@keyframes fxWord { to { opacity: 1; transform: none; } }
+
+/* Shimmering gradient on the headline highlights */
+.hero-title .highlight {
+  background-size: 220% auto;
+  animation: fxShimmer 7s linear infinite;
+}
+@keyframes fxShimmer { 0% { background-position: 0% 50%; } 100% { background-position: 220% 50%; } }
+
+/* Typed line */
+.hero-typed {
+  min-height: 1.7em; margin: -0.9rem 0 1.6rem;
+  font-family: var(--font-sans); font-style: italic;
+  color: var(--cyan); font-size: 1rem;
+}
+.hero-typed .typed-lead { color: var(--text-secondary); }
+.typed-caret {
+  display: inline-block; width: 2px; height: 1.05em; margin-left: 3px;
+  background: var(--cyan); vertical-align: -0.15em;
+  animation: fxCaret 1s steps(1) infinite;
+}
+@keyframes fxCaret { 50% { opacity: 0; } }
+
+/* ---------- Skills marquee ---------- */
+.marquee-wrap {
+  display: flex; flex-direction: column; gap: 0.75rem;
+  margin: 0.5rem 0 2.5rem; overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+}
+.marquee-row { overflow: hidden; }
+.marquee-track { display: flex; width: max-content; animation: fxMarquee var(--dur, 40s) linear infinite; }
+.marquee-row.reverse .marquee-track { animation-direction: reverse; }
+.marquee-wrap:hover .marquee-track { animation-play-state: paused; }
+.marquee-set { display: flex; gap: 0.75rem; padding-right: 0.75rem; }
+.marquee-pill {
+  display: inline-flex; align-items: center; gap: 0.55rem; white-space: nowrap;
+  padding: 0.5rem 1.1rem; border: 1px solid var(--border); border-radius: 100px;
+  background: rgba(15, 42, 92, 0.45); color: var(--text-secondary);
+  font-family: var(--font-sans); font-size: 0.85rem; font-weight: 500;
+  transition: border-color 0.25s ease, color 0.25s ease, background 0.25s ease;
+}
+.marquee-pill::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--cyan); box-shadow: 0 0 8px var(--cyan);
+}
+.marquee-pill:hover { border-color: var(--cyan); color: var(--white); background: rgba(0, 102, 255, 0.3); }
+@keyframes fxMarquee { to { transform: translateX(-50%); } }
+.marquee-wrap.is-static { -webkit-mask-image: none; mask-image: none; }
+.marquee-wrap.is-static .marquee-track { animation: none; width: auto; flex-wrap: wrap; justify-content: center; }
+.marquee-wrap.is-static .marquee-set { flex-wrap: wrap; justify-content: center; padding-right: 0; }
+.marquee-wrap.is-static .marquee-set[aria-hidden="true"] { display: none; }
+
+/* ---------- Section headings: animated underline ---------- */
+.js-fx .section-header h2::after {
+  content: ""; display: block; height: 3px; width: 0; margin-top: 0.7rem; border-radius: 3px;
+  background: var(--accent-gradient);
+  transition: width 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.25s;
+}
+.js-fx .content-section.active .section-header h2::after { width: 56px; }
+
+/* ---------- Skill pills pop in ---------- */
+@keyframes fxPill { from { opacity: 0; transform: translateY(10px) scale(0.94); } to { opacity: 1; transform: none; } }
+.js-fx .content-section.active .skill-pills span {
+  animation: fxPill 0.55s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 45ms + 0.2s);
+}
+.skill-pills span { transition: border-color 0.25s ease, color 0.25s ease, background 0.25s ease, transform 0.25s ease; }
+.skill-pills span:hover { border-color: var(--cyan); color: var(--white); transform: translateY(-2px); }
+
+/* ---------- Spotlight glow that follows the cursor ---------- */
+.fx-spot {
+  background-image: radial-gradient(380px circle at var(--mx, 50%) var(--my, 50%), rgba(0, 229, 255, 0.13), transparent 45%);
+}
+
+/* ---------- Tilt cards ---------- */
+.fx-tilting { transition: transform 0.12s ease-out, border-color 0.4s ease, box-shadow 0.4s ease !important; }
+
+/* ---------- Scrollspy ---------- */
+.nav-links a.nav-link.active {
+  color: var(--white);
+  text-decoration: underline; text-decoration-color: var(--cyan);
+  text-decoration-thickness: 2px; text-underline-offset: 9px;
+}
+
+/* ---------- Floating helper buttons (bottom-left) ---------- */
+.fx-fab {
+  position: fixed; left: max(1rem, env(safe-area-inset-left, 0px)); z-index: 900;
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  background: rgba(6, 20, 46, 0.9); color: var(--white);
+  border: 1px solid rgba(0, 229, 255, 0.35); border-radius: 100px;
+  font-family: var(--font-sans); font-size: 0.8rem; font-weight: 500; cursor: pointer;
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  transition: transform 0.25s ease, opacity 0.25s ease, border-color 0.25s ease;
+}
+.fx-fab:hover { border-color: var(--cyan); transform: translateY(-2px); }
+.to-top {
+  bottom: max(4.2rem, calc(env(safe-area-inset-bottom, 0px) + 3.6rem));
+  width: 42px; height: 42px; justify-content: center; padding: 0;
+  opacity: 0; pointer-events: none; transform: translateY(10px);
+}
+.to-top.show { opacity: 1; pointer-events: auto; transform: none; }
+.to-top.show:hover { transform: translateY(-2px); }
+.qj-btn { bottom: max(1rem, env(safe-area-inset-bottom, 0px)); padding: 0.55rem 0.9rem; }
+.qj-btn kbd {
+  font-family: var(--font-sans); font-size: 0.68rem; padding: 0.1rem 0.4rem;
+  border: 1px solid var(--border); border-radius: 5px; color: var(--cyan);
+}
+@media (hover: none), (pointer: coarse), (max-width: 700px) { .qj-btn { display: none; } .to-top { bottom: max(4.4rem, calc(env(safe-area-inset-bottom, 0px) + 4rem)); } }
+
+/* ---------- Quick-jump palette (Ctrl/Cmd + K) ---------- */
+.qj-overlay {
+  position: fixed; inset: 0; z-index: 1200; display: none;
+  align-items: flex-start; justify-content: center; padding: 14vh 1rem 1rem;
+  background: rgba(3, 10, 24, 0.72);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.qj-overlay.open { display: flex; animation: fxFade 0.2s ease both; }
+@keyframes fxFade { from { opacity: 0; } to { opacity: 1; } }
+.qj-box {
+  width: min(560px, 100%); background: rgba(10, 31, 68, 0.98);
+  border: 1px solid rgba(0, 229, 255, 0.4); border-radius: 18px; overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 40px rgba(0, 102, 255, 0.25);
+  animation: fxFadeUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.qj-input {
+  width: 100%; padding: 1rem 1.25rem; background: transparent; border: none; outline: none;
+  border-bottom: 1px solid var(--border); color: var(--white);
+  font-family: var(--font-sans); font-size: 1rem;
+}
+.qj-input::placeholder { color: var(--text-muted); }
+.qj-list { list-style: none; margin: 0; padding: 0.4rem; max-height: min(52vh, 380px); overflow-y: auto; }
+.qj-item {
+  display: flex; align-items: center; gap: 0.8rem; padding: 0.65rem 0.85rem;
+  border-radius: 10px; cursor: pointer; color: var(--text-secondary);
+  font-family: var(--font-sans); font-size: 0.9rem;
+}
+.qj-item .qj-icon { width: 1.4rem; text-align: center; color: var(--cyan); flex-shrink: 0; }
+.qj-item .qj-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qj-item .qj-hint { font-size: 0.75rem; font-style: italic; color: var(--text-muted); white-space: nowrap; }
+.qj-item.sel { background: rgba(0, 102, 255, 0.35); color: var(--white); }
+.qj-empty { padding: 1.2rem; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+.qj-foot {
+  display: flex; gap: 1rem; padding: 0.6rem 1.1rem; border-top: 1px solid var(--border);
+  font-size: 0.72rem; color: var(--text-muted); font-style: italic;
+}
+
+/* ---------- Reduced motion: switch it all off ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .hero-content > *, .hero-avatar-wrapper, .brand-tagline .tw,
+  .hero-title .highlight, .js-fx .content-section.active .skill-pills span { animation: none !important; opacity: 1; transform: none; }
+  .brand-tagline .tw { opacity: 1; }
+  .typed-caret { animation: none; }
+  .scroll-progress { transition: none; }
+}
