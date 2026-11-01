@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
-  <title>Terrenze Josh Binamira | Web Developer • Virtual Assistant (WFH) • Graphic Designer</title>
+  <meta name="theme-color" content="#0A1F44" />
+  <meta name="description" content="Explore. Organize. Elevate. Web developer, virtual assistant and graphic designer based in the Philippines." />
+  <title>Terrenze Josh Binamira · Explore. Organize. Elevate. | Web Developer • Virtual Assistant (WFH) • Graphic Designer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;1,400&family=Montserrat:wght@600&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=2" />
   <link rel="alternate icon" href="./favicon.svg" />
   <link rel="stylesheet" href="./styles.css" />
@@ -35,6 +37,7 @@
         <a href="#skills" class="nav-link">Skills & Tools</a>
         <a href="#experience" class="nav-link">Background</a>
         <a href="#projects" class="nav-link">Work & Feats</a>
+        <a href="#social" class="nav-link">Social</a>
         <a href="#contact" class="btn btn-secondary nav-btn">Hire Me</a>
         <a href="./admin/index.html" class="admin-link">
           Admin Console 
@@ -51,6 +54,7 @@
             <span class="status-indicator"></span>
             <span>Available for Remote / WFH • Full-Time & Contract • 30+ hrs/wk</span>
           </div>
+          <p class="brand-tagline">Explore. Organize. Elevate.</p>
           <h1 class="hero-title">
             Versatile <span class="highlight">Web Developer</span>, <span class="highlight">Virtual Assistant</span> & <span class="highlight">Graphic Designer</span>.
           </h1>
@@ -69,7 +73,7 @@
         <!-- Profile Avatar Card -->
         <div class="hero-avatar-wrapper">
           <div class="avatar-card">
-            <img src="./assets/profile.jpg" alt="Terrenze Josh Binamira" class="avatar-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+            <img src="./assets/profile.png" alt="Terrenze Josh Binamira" class="avatar-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
             <div class="avatar-fallback" style="display: none;">
               <span>TJ</span>
             </div>
@@ -325,6 +329,31 @@
       </div>
     </section>
 
+    <!-- Social Feed (synced from Facebook & Instagram via Supabase) -->
+    <section id="social" class="content-section social-band">
+      <div class="section-header">
+        <span class="section-badge">Latest Updates</span>
+        <h2>From My Social Feed</h2>
+        <p>Recent posts from Facebook and Instagram, updated automatically.</p>
+      </div>
+
+      <div class="social-tabs" id="socialTabs">
+        <button class="social-tab active" data-platform="all">All</button>
+        <button class="social-tab" data-platform="instagram">Instagram</button>
+        <button class="social-tab" data-platform="facebook">Facebook</button>
+      </div>
+
+      <div id="socialGrid" class="social-grid">
+        <div class="state-message">Loading latest posts...</div>
+      </div>
+
+      <div class="social-follow">
+        <a href="https://www.facebook.com/profile.php?id=61595984403637" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">Follow on Facebook</a>
+        <!-- TODO: replace with your Instagram profile URL -->
+        <a href="https://www.instagram.com/tjwebsolutions/" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">Follow on Instagram</a>
+      </div>
+    </section>
+
     <!-- Contact & Hire Section -->
     <section id="contact" class="content-section">
       <div class="contact-box">
@@ -366,6 +395,7 @@
     <footer class="footer">
       <div class="footer-content">
         <p>&copy; 2026 Terrenze Josh Binamira • Website Developer • Virtual Assistant (WFH) • Graphic Designer</p>
+        <p class="brand-tagline" style="justify-content:center;margin:0.4rem 0 0.2rem;">Explore. Organize. Elevate.</p>
         <p class="footer-sub">Legazpi, Philippines • Available Worldwide (English & Tagalog)</p>
       </div>
     </footer>
@@ -398,6 +428,12 @@
       </div>
     </div>
   </div>
+
+  <!-- Floating Messenger button: opens a chat with the TJ Web Solutions Page -->
+  <a class="messenger-fab" href="https://m.me/1662534843600276" target="_blank" rel="noopener noreferrer" aria-label="Message me on Facebook Messenger">
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="currentColor"><path d="M12 2C6.48 2 2 6.14 2 11.25c0 2.91 1.45 5.5 3.72 7.2V22l3.4-1.87c.9.25 1.86.39 2.88.39 5.52 0 10-4.14 10-9.27S17.52 2 12 2zm1.04 12.49-2.55-2.72-4.98 2.72 5.48-5.82 2.61 2.72 4.92-2.72-5.48 5.82z"/></svg>
+    <span>Message me</span>
+  </a>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabaseClient.js"></script>

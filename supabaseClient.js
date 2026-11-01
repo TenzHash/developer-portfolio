@@ -1,10 +1,12 @@
-// Replace these with your actual Project Settings -> API credentials in Supabase
-const SUPABASE_URL = "https://mmqnyoiaiwcrnvtcbnxe.supabase.co";
+// 1) Create your NEW Supabase project, then go to Project Settings -> API
+// 2) Paste the Project URL and the "anon / public" key below (the anon key is safe to expose in the browser)
+const SUPABASE_URL = "https://owwbrunnpbbvtuaezmrs.supabase.co";
 const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tcW55b2lhaXdjcm52dGNibnhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2NTEzMjAsImV4cCI6MjEwMzIyNzMyMH0.mAJMAnrrGn5IRc7Q8N_XhBFRKtX24II9tG9pDwBIvFs";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im93d2JydW5ucGJidnR1YWV6bXJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM0MzAyNDQsImV4cCI6MjEwOTAwNjI0NH0.Q4trPl8htZpLw4Z370_JqWJMDyAmdmHruRAL4tyVNNI";
 
-// Assign directly to a unique window property
+window.SUPABASE_CONFIGURED = !SUPABASE_URL.includes("YOUR-PROJECT-REF");
+
 window.supabaseClient = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY,
+  window.SUPABASE_CONFIGURED ? SUPABASE_URL : "https://placeholder.supabase.co",
+  window.SUPABASE_CONFIGURED ? SUPABASE_ANON_KEY : "placeholder",
 );

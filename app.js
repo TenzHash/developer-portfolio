@@ -62,8 +62,22 @@ function normalizeTags(rawTags) {
     .filter(Boolean);
 }
 
+// Helper: escape text coming from third parties (Facebook / Instagram captions)
+function esc(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // 1. Fetch & Load Projects (Ordered by custom display_order)
 async function loadPublicProjects() {
+  if (!window.SUPABASE_CONFIGURED) {
+    projectGrid.innerHTML = `<div class="state-message">Connect your Supabase project in supabaseClient.js to load projects.</div>`;
+    return;
+  }
   const { data: projects, error } = await db
     .from("projects")
     .select("*")
@@ -336,3 +350,84 @@ document.addEventListener("DOMContentLoaded", () => {
   initScrollReveal();
   loadPublicProjects();
 });
+
+
+/* ==========================================================================
+   Social feed (Facebook + Instagram posts synced into the social_posts table)
+   ========================================================================== */
+const socialGrid = document.getElementById("socialGrid");
+const socialTabs = document.querySelectorAll(".social-tab");
+let allSocialPosts = [];
+let activePlatform = "all";
+
+async function loadSocialPosts() {
+  if (!socialGrid) return;
+  if (!window.SUPABASE_CONFIGURED) {
+    socialGrid.innerHTML = `<div class="state-message">Connect Supabase to show your social posts.</div>`;
+    return;
+  }
+
+  const { data, error } = await db
+    .from("social_posts")
+    .select("*")
+    .eq("is_hidden", false)
+    .order("posted_at", { ascending: false })
+    .limit(24);
+
+  if (error) {
+    socialGrid.innerHTML = `<div class="state-message">Unable to load posts right now.</div>`;
+    return;
+  }
+  allSocialPosts = data || [];
+  renderSocialPosts();
+}
+
+function renderSocialPosts() {
+  const list =
+    activePlatform === "all"
+      ? allSocialPosts
+      : allSocialPosts.filter((p) => p.platform === activePlatform);
+
+  if (list.length === 0) {
+    socialGrid.innerHTML = `<div class="state-message">No posts to show yet.</div>`;
+    return;
+  }
+
+  socialGrid.innerHTML = list
+    .map((p) => {
+      const date = p.posted_at
+        ? new Date(p.posted_at).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })
+        : "";
+      const media = p.media_url
+        ? `<img src="${esc(p.media_url)}" alt="${esc((p.caption || "Social post").slice(0, 80))}" loading="lazy" />`
+        : "";
+      const safeLink = /^https:\/\//.test(p.permalink || "") ? p.permalink : "#";
+      return `
+      <a class="social-card" href="${esc(safeLink)}" target="_blank" rel="noopener noreferrer">
+        <div class="social-media">
+          ${media}
+          <span class="social-platform">${esc(p.platform)}</span>
+        </div>
+        <div class="social-body">
+          <p class="social-caption">${esc(p.caption || "")}</p>
+          <span class="social-date">${esc(date)}</span>
+        </div>
+      </a>`;
+    })
+    .join("");
+}
+
+socialTabs.forEach((tab) => {
+  tab.addEventListener("click", () => {
+    socialTabs.forEach((t) => t.classList.remove("active"));
+    tab.classList.add("active");
+    activePlatform = tab.getAttribute("data-platform");
+    renderSocialPosts();
+  });
+});
+
+document.addEventListener("DOMContentLoaded", loadSocialPosts);

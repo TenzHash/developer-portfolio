@@ -579,3 +579,592 @@ db.auth.onAuthStateChange((event) => {
 });
 
 checkAuth();
+
+
+// ---- Social feed sync (calls the sync-social Edge Function) ----
+const syncSocialBtn = document.getElementById("syncSocialBtn");
+const syncStatus = document.getElementById("syncStatus");
+const lastSyncMeta = document.getElementById("lastSyncMeta");
+
+async function loadLastSync() {
+  if (!lastSyncMeta) return;
+  const { data } = await db
+    .from("social_posts")
+    .select("synced_at")
+    .order("synced_at", { ascending: false })
+    .limit(1);
+  lastSyncMeta.innerText =
+    data && data[0]
+      ? "Last sync: " + new Date(data[0].synced_at).toLocaleString()
+      : "Last sync: never";
+}
+
+if (syncSocialBtn) {
+  syncSocialBtn.addEventListener("click", async () => {
+    syncSocialBtn.disabled = true;
+    syncStatus.innerText = "Syncing from Facebook & Instagram...";
+    const { data, error } = await db.functions.invoke("sync-social");
+    syncSocialBtn.disabled = false;
+    if (error) {
+      let detail = error.message;
+      try {
+        if (error.context && typeof error.context.json === "function") {
+          const body = await error.context.json();
+          detail = body.error || body.message || JSON.stringify(body);
+        }
+      } catch (_) {}
+      syncStatus.innerText = "Sync failed: " + detail;
+    } else {
+      syncStatus.innerText = `Done. Facebook: ${data.facebook}, Instagram: ${data.instagram} posts updated.`;
+      loadLastSync();
+    }
+  });
+  db.auth.onAuthStateChange((event) => {
+    if (event === "SIGNED_IN") loadLastSync();
+  });
+  loadLastSync();
+}
+
+
+// ---- Choose which social posts show on the website ----
+const socialPostsList = document.getElementById("socialPostsList");
+
+function escPost(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+async function loadSocialPicker() {
+  if (!socialPostsList) return;
+  const { data, error } = await db
+    .from("social_posts")
+    .select("id, platform, caption, media_url, posted_at, is_hidden")
+    .order("posted_at", { ascending: false })
+    .limit(60);
+
+  if (error) {
+    socialPostsList.innerHTML = `<div class="sync-meta">Could not load posts: ${escPost(error.message)}</div>`;
+    return;
+  }
+  if (!data || data.length === 0) {
+    socialPostsList.innerHTML = `<div class="sync-meta">No synced posts yet. Click "Sync now" first.</div>`;
+    return;
+  }
+
+  socialPostsList.innerHTML = data
+    .map((p) => {
+      const date = p.posted_at ? new Date(p.posted_at).toLocaleDateString() : "";
+      const thumb = p.media_url
+        ? `<img src="${escPost(p.media_url)}" alt="" />`
+        : `<div class="post-thumb-empty">No image</div>`;
+      return `
+      <label class="post-pick-row">
+        ${thumb}
+        <div class="post-pick-info">
+          <div class="post-pick-top"><span class="post-pick-platform">${escPost(p.platform)}</span> <span class="sync-meta">${escPost(date)}</span></div>
+          <div class="post-pick-caption">${escPost((p.caption || "(no caption)").slice(0, 110))}</div>
+        </div>
+        <input type="checkbox" data-id="${escPost(p.id)}" ${p.is_hidden ? "" : "checked"} />
+      </label>`;
+    })
+    .join("");
+
+  socialPostsList.querySelectorAll('input[type="checkbox"]').forEach((box) => {
+    box.addEventListener("change", async () => {
+      box.disabled = true;
+      const { error: upErr } = await db
+        .from("social_posts")
+        .update({ is_hidden: !box.checked })
+        .eq("id", box.getAttribute("data-id"));
+      box.disabled = false;
+      if (upErr) {
+        box.checked = !box.checked; // revert on failure
+        alert("Could not update: " + upErr.message);
+      }
+    });
+  });
+}
+
+if (socialPostsList) {
+  db.auth.onAuthStateChange((event) => {
+    if (event === "SIGNED_IN") loadSocialPicker();
+  });
+  loadSocialPicker();
+  // refresh the list after a sync finishes
+  if (syncSocialBtn) syncSocialBtn.addEventListener("click", () => setTimeout(loadSocialPicker, 4000));
+}
+
+
+/* ==========================================================================
+   Import projects from GitHub (public repos, no token needed)
+   Fills the project form from: repo name, description, topics, homepage,
+   languages and the README (first paragraph + first image).
+   ========================================================================== */
+const ghUsername = document.getElementById("ghUsername");
+const ghLoadBtn = document.getElementById("ghLoadBtn");
+const ghHideForks = document.getElementById("ghHideForks");
+const ghStatus = document.getElementById("ghStatus");
+const ghRepoList = document.getElementById("ghRepoList");
+let ghRepos = [];
+
+try {
+  const saved = localStorage.getItem("gh_username");
+  if (saved && ghUsername) ghUsername.value = saved;
+} catch (_) {}
+
+async function ghFetch(path, raw = false) {
+  const res = await fetch("https://api.github.com" + path, {
+    headers: { Accept: raw ? "application/vnd.github.raw+json" : "application/vnd.github+json" },
+  });
+  if (res.status === 403 || res.status === 429) {
+    throw new Error("GitHub rate limit reached (60 requests/hour without a token). Try again later.");
+  }
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error("GitHub error " + res.status);
+  return raw ? res.text() : res.json();
+}
+
+function ghPrettyName(name) {
+  return name
+    .replace(/[-_]+/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
+}
+
+function ghResolveUrl(url, owner, repo) {
+  if (/^https?:\/\//i.test(url)) return url;
+  const clean = url.replace(/^\.?\//, "");
+  return `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${clean}`;
+}
+
+// Pull a usable summary paragraph and first real screenshot out of a README
+function ghParseReadme(md, owner, repo) {
+  if (!md) return { paragraph: "", image: "" };
+
+  let image = "";
+  const imgRegex = /!\[[^\]]*\]\(([^)\s]+)[^)]*\)|<img[^>]+src=["']([^"']+)["']/gi;
+  let m;
+  while ((m = imgRegex.exec(md))) {
+    const src = m[1] || m[2];
+    if (!src) continue;
+    if (/shields\.io|badge|\.svg(\?|$)|githubusercontent\.com\/.*\/badges|travis-ci|codecov/i.test(src)) continue;
+    image = ghResolveUrl(src, owner, repo);
+    break;
+  }
+
+  const blocks = md
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/```[\s\S]*?```/g, "")
+    .split(/\n\s*\n/);
+
+  let paragraph = "";
+  for (const raw of blocks) {
+    const line = raw
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .replace(/<[^>]+>/g, "")
+      .replace(/[*_`>]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!line || line.startsWith("#") || line.startsWith("|") || /^[-=+\s]+$/.test(line)) continue;
+    if (line.length < 40) continue;
+    paragraph = line;
+    break;
+  }
+  return { paragraph, image };
+}
+
+// Make "myapp.vercel.app" into "https://myapp.vercel.app"
+function ghNormalizeUrl(u) {
+  if (!u) return "";
+  u = u.trim();
+  if (/^https?:\/\//i.test(u)) return u;
+  if (/^[\w-]+(\.[\w-]+)+(\/.*)?$/.test(u)) return "https://" + u;
+  return "";
+}
+
+const GH_HOSTING = /(vercel\.app|netlify\.app|pages\.dev|github\.io|onrender\.com|herokuapp\.com|web\.app|firebaseapp\.com|surge\.sh|railway\.app|fly\.dev|streamlit\.app|vercel\.com\/?$|glitch\.me|replit\.app|codesandbox\.io|stackblitz\.com)/i;
+const GH_IGNORE = /(github\.com|shields\.io|npmjs\.com|linkedin\.com|twitter\.com|x\.com|facebook\.com|instagram\.com|discord|youtube\.com|youtu\.be|img\.|badge|raw\.githubusercontent)/i;
+
+// Find the live demo: homepage field -> GitHub Pages -> links in the README
+function ghFindDemoUrl(repo, readme) {
+  const home = ghNormalizeUrl(repo.homepage);
+  if (home) return home;
+
+  if (repo.has_pages) {
+    const owner = repo.owner.login;
+    return repo.name.toLowerCase() === `${owner}.github.io`.toLowerCase()
+      ? `https://${owner}.github.io/`
+      : `https://${owner}.github.io/${repo.name}/`;
+  }
+
+  if (readme) {
+    const links = [];
+    const mdLink = /\[([^\]]*)\]\((https?:\/\/[^)\s]+)[^)]*\)/g;
+    let m;
+    while ((m = mdLink.exec(readme))) links.push({ text: m[1], url: m[2] });
+    const bare = /(?<![\(\"'])\bhttps?:\/\/[^\s)<>"']+/g;
+    while ((m = bare.exec(readme))) links.push({ text: "", url: m[0] });
+
+    const clean = links.filter((l) => !GH_IGNORE.test(l.url) || GH_HOSTING.test(l.url));
+    const labeled = clean.find((l) => /demo|live|visit|website|view|preview|try/i.test(l.text) && !/github\.com/i.test(l.url) && !/!/.test(l.text));
+    const hosted = clean.find((l) => GH_HOSTING.test(l.url));
+    const pick = (labeled && GH_HOSTING.test(labeled.url) ? labeled : null) || hosted || labeled;
+    if (pick) return pick.url.replace(/[.,;]+$/, "");
+  }
+  return "";
+}
+
+function fnErrorDetail(error) {
+  return (async () => {
+    try {
+      if (error.context && typeof error.context.json === "function") {
+        const body = await error.context.json();
+        return body.error || body.message || JSON.stringify(body);
+      }
+    } catch (_) {}
+    return error.message;
+  })();
+}
+
+// Ask the capture-screenshot Edge Function for a stored screenshot of a live URL
+async function captureLandingPage(url) {
+  const { data, error } = await db.functions.invoke("capture-screenshot", { body: { url } });
+  if (error) throw new Error(await fnErrorDetail(error));
+  if (!data || !data.url) throw new Error("No screenshot returned.");
+  return data.url;
+}
+
+function ghRenderList() {
+  const existing = new Set(
+    (typeof cachedProjects !== "undefined" ? cachedProjects : [])
+      .map((p) => (p.github_url || "").toLowerCase().replace(/\/$/, "")),
+  );
+  const list = ghRepos.filter((r) => !(ghHideForks.checked && r.fork));
+  if (list.length === 0) {
+    ghRepoList.innerHTML = `<div class="sync-meta">No repositories to show.</div>`;
+    return;
+  }
+  ghRepoList.innerHTML = list
+    .map((r) => {
+      const added = existing.has(r.html_url.toLowerCase());
+      return `
+      <div class="gh-repo-row">
+        <div class="gh-repo-info">
+          <div class="gh-repo-name">${escPost(r.name)} ${r.fork ? '<span class="gh-pill">fork</span>' : ""} ${added ? '<span class="gh-pill gh-pill-ok">added</span>' : ""}</div>
+          <div class="gh-repo-desc">${escPost(r.description || "No description")}</div>
+        </div>
+        <button type="button" class="btn btn-primary gh-import-btn" data-repo="${escPost(r.name)}">Import</button>
+      </div>`;
+    })
+    .join("");
+}
+
+async function ghLoadRepos() {
+  const user = ghUsername.value.trim();
+  if (!user) {
+    ghStatus.innerText = "Enter your GitHub username first.";
+    return;
+  }
+  try { localStorage.setItem("gh_username", user); } catch (_) {}
+  ghLoadBtn.disabled = true;
+  ghStatus.innerText = "Loading repositories...";
+  ghRepoList.innerHTML = "";
+  try {
+    const repos = await ghFetch(`/users/${encodeURIComponent(user)}/repos?per_page=100&sort=pushed`);
+    if (!repos) {
+      ghStatus.innerText = "User not found.";
+    } else {
+      ghRepos = repos;
+      ghStatus.innerText = `${repos.length} public repositories found.`;
+      ghRenderList();
+    }
+  } catch (err) {
+    ghStatus.innerText = err.message;
+  }
+  ghLoadBtn.disabled = false;
+}
+
+async function ghImportRepo(name, btn) {
+  const repo = ghRepos.find((r) => r.name === name);
+  if (!repo) return;
+  btn.disabled = true;
+  btn.innerText = "Importing...";
+  ghStatus.innerText = `Reading ${name}...`;
+  try {
+    const owner = repo.owner.login;
+    const [langs, readme] = await Promise.all([
+      ghFetch(`/repos/${owner}/${name}/languages`),
+      ghFetch(`/repos/${owner}/${name}/readme`, true),
+    ]);
+    const { paragraph, image } = ghParseReadme(readme, owner, name);
+
+    // Summary: description first, then README paragraph if it adds something
+    let summary = repo.description || "";
+    if (paragraph && !summary.toLowerCase().includes(paragraph.slice(0, 40).toLowerCase())) {
+      summary = summary ? `${summary.replace(/\.?$/, ".")} ${paragraph}` : paragraph;
+    }
+    if (summary.length > 300) summary = summary.slice(0, 297).replace(/\s+\S*$/, "") + "...";
+
+    // Tags: topics first, then top languages
+    const langNames = Object.keys(langs || {}).slice(0, 4);
+    const topics = (repo.topics || []).map(ghPrettyName);
+    const tags = [...new Set([...topics, ...langNames])].slice(0, 8);
+
+    resetFormMode();
+    categoryInput.value = "Website & Web App Development";
+    updateDynamicFields(categoryInput.value);
+    titleInput.value = ghPrettyName(repo.name);
+    summaryInput.value = summary;
+    tagsInput.value = tags.join(", ");
+    const demoUrl = ghFindDemoUrl(repo, readme);
+    demoUrlInput.value = demoUrl;
+    githubUrlInput.value = repo.html_url;
+
+    // Fallback cover image (README screenshot, else GitHub's preview card)
+    const fallbackImage = image || `https://opengraph.githubassets.com/1/${owner}/${name}`;
+    existingMediaUrls = [fallbackImage];
+    renderMediaQueue();
+    projectForm.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    if (demoUrl) {
+      ghStatus.innerText = `Imported "${repo.name}". Taking a screenshot of ${demoUrl} ...`;
+      try {
+        const shot = await captureLandingPage(demoUrl);
+        // Landing page screenshot becomes the cover; README image (if any) follows
+        existingMediaUrls = image ? [shot, image] : [shot];
+        renderMediaQueue();
+        ghStatus.innerText = `Imported "${repo.name}" with a landing page screenshot. Review the form, then click Publish.`;
+      } catch (shotErr) {
+        ghStatus.innerText = `Imported "${repo.name}". Screenshot failed (${shotErr.message}), so a fallback image was used. Review, then click Publish.`;
+      }
+    } else {
+      ghStatus.innerText = `Imported "${repo.name}". No live demo URL was found, so add one in the form if it has one. Then click Publish.`;
+    }
+    await runSuggestions();
+  } catch (err) {
+    ghStatus.innerText = err.message;
+  }
+  btn.disabled = false;
+  btn.innerText = "Import";
+}
+
+if (ghLoadBtn) {
+  ghLoadBtn.addEventListener("click", ghLoadRepos);
+  ghUsername.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); ghLoadRepos(); }
+  });
+  ghHideForks.addEventListener("change", ghRenderList);
+  ghRepoList.addEventListener("click", (e) => {
+    const btn = e.target.closest(".gh-import-btn");
+    if (btn) ghImportRepo(btn.getAttribute("data-repo"), btn);
+  });
+}
+
+
+// ---- Manual "Capture landing page screenshot" button next to the Live URL field ----
+const captureShotBtn = document.getElementById("captureShotBtn");
+const shotStatus = document.getElementById("shotStatus");
+
+if (captureShotBtn) {
+  captureShotBtn.addEventListener("click", async () => {
+    const url = ghNormalizeUrl(demoUrlInput.value);
+    if (!url) {
+      shotStatus.innerText = "Enter a Live URL first.";
+      return;
+    }
+    demoUrlInput.value = url;
+    captureShotBtn.disabled = true;
+    shotStatus.innerText = "Capturing... this can take 10-20 seconds.";
+    try {
+      const shot = await captureLandingPage(url);
+      existingMediaUrls = [shot, ...existingMediaUrls.filter((u) => u !== shot)];
+      renderMediaQueue();
+      shotStatus.innerText = "Added as the first image.";
+    } catch (err) {
+      shotStatus.innerText = "Failed: " + err.message;
+    }
+    captureShotBtn.disabled = false;
+  });
+}
+
+
+/* ==========================================================================
+   Suggestions: detect tech stack (live site + repo) and suggest title / tags / summary
+   ========================================================================== */
+const titleSuggest = document.getElementById("titleSuggest");
+const tagsSuggest = document.getElementById("tagsSuggest");
+const summarySuggest = document.getElementById("summarySuggest");
+const suggestBtn = document.getElementById("suggestBtn");
+const suggestStatus = document.getElementById("suggestStatus");
+
+let suggestState = { titles: [], tags: [], summaries: [] };
+
+const LOW_VALUE_TAGS = new Set(["Google Fonts", "Font Awesome"]);
+
+// package.json dependency -> display name
+const PKG_MAP = {
+  next: "Next.js", nuxt: "Nuxt", gatsby: "Gatsby", astro: "Astro",
+  react: "React", vue: "Vue", svelte: "Svelte", "@angular/core": "Angular",
+  vite: "Vite", typescript: "TypeScript", tailwindcss: "Tailwind CSS",
+  bootstrap: "Bootstrap", sass: "Sass", "@mui/material": "Material UI",
+  "framer-motion": "Framer Motion", gsap: "GSAP", three: "Three.js",
+  "@supabase/supabase-js": "Supabase", firebase: "Firebase",
+  express: "Express", mongoose: "MongoDB", prisma: "Prisma",
+  "@prisma/client": "Prisma", "socket.io": "Socket.IO", "chart.js": "Chart.js",
+  recharts: "Recharts", "react-router-dom": "React Router", redux: "Redux",
+  "@reduxjs/toolkit": "Redux Toolkit", zustand: "Zustand", axios: "Axios",
+};
+
+async function ghDetectStack(owner, repo) {
+  const raw = await ghFetch(`/repos/${owner}/${repo}/contents/package.json`, true);
+  if (!raw) return [];
+  let pkg;
+  try { pkg = JSON.parse(raw); } catch (_) { return []; }
+  const deps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
+  const out = [];
+  for (const [name, label] of Object.entries(PKG_MAP)) {
+    if (deps[name] && !out.includes(label)) out.push(label);
+  }
+  return out;
+}
+
+async function analyzeSite(url) {
+  const { data, error } = await db.functions.invoke("analyze-site", { body: { url } });
+  if (error) throw new Error(await fnErrorDetail(error));
+  return data;
+}
+
+function cleanTitle(t) {
+  if (!t) return "";
+  return t.split(/\s[|\-–—·:]\s/)[0].trim().slice(0, 60);
+}
+
+function buildSummaries(title, tech, site) {
+  const out = [];
+  const add = (text, kind) => {
+    let s = (text || "").replace(/\s+/g, " ").trim();
+    if (s.length < 20) return;
+    if (s.length > 300) s = s.slice(0, 297).replace(/\s+\S*$/, "") + "...";
+    if (!out.some((o) => o.text.toLowerCase() === s.toLowerCase())) out.push({ text: s, kind });
+  };
+
+  if (site) {
+    add(site.description, "From your live site");
+    add(site.paragraph, "From your live site");
+    if (site.headline && site.headline.length > 25) add(site.headline, "From your live site");
+  }
+
+  const stack = tech.filter((t) => !["HTML", "CSS", "JavaScript"].includes(t) && !LOW_VALUE_TAGS.has(t)).slice(0, 3);
+  const stackText = stack.length
+    ? stack.join(", ").replace(/, ([^,]*)$/, " and $1")
+    : "HTML, CSS and JavaScript";
+  const name = title || "This project";
+  add(`${name} is a website built with ${stackText}.`, "Template draft: edit to match");
+  add(`Designed and developed ${name} using ${stackText}, focused on a clean layout and a smooth user experience.`, "Template draft: edit to match");
+  return out;
+}
+
+function renderSuggestions() {
+  if (!titleSuggest) return;
+  const curTitle = titleInput.value.trim().toLowerCase();
+  const curTags = normalizeTags(tagsInput.value).map((t) => t.toLowerCase());
+
+  titleSuggest.innerHTML = suggestState.titles
+    .filter((t) => t.toLowerCase() !== curTitle)
+    .map((t, i) => `<button type="button" class="sg-chip" data-kind="title" data-value="${escPost(t)}">${escPost(t)}</button>`)
+    .join("");
+
+  tagsSuggest.innerHTML = suggestState.tags
+    .map((t) => `<button type="button" class="sg-chip ${curTags.includes(t.toLowerCase()) ? "sg-on" : ""}" data-kind="tag" data-value="${escPost(t)}">${curTags.includes(t.toLowerCase()) ? "✓ " : "+ "}${escPost(t)}</button>`)
+    .join("");
+
+  summarySuggest.innerHTML = suggestState.summaries
+    .map((s, i) => `<button type="button" class="sg-block" data-kind="summary" data-i="${i}"><span class="sg-kind">${escPost(s.kind)}</span>${escPost(s.text)}</button>`)
+    .join("");
+}
+
+async function runSuggestions() {
+  if (!suggestBtn) return;
+  suggestBtn.disabled = true;
+  suggestStatus.innerText = "Analyzing live site and repository...";
+
+  const demo = ghNormalizeUrl(demoUrlInput.value);
+  const m = (githubUrlInput.value || "").match(/github\.com\/([^\/\s]+)\/([^\/\s#?]+)/i);
+  let site = null;
+  let pkg = [];
+  const notes = [];
+
+  await Promise.all([
+    (async () => {
+      if (!demo) return;
+      try { site = await analyzeSite(demo); }
+      catch (e) { notes.push("Live site scan unavailable (" + e.message + ")"); }
+    })(),
+    (async () => {
+      if (!m) return;
+      try { pkg = await ghDetectStack(m[1], m[2].replace(/\.git$/, "")); }
+      catch (e) { notes.push(e.message); }
+    })(),
+  ]);
+
+  const existing = normalizeTags(tagsInput.value);
+  const detected = [...pkg, ...((site && site.tech) || [])];
+  const candidates = [...new Set([...detected, ...existing])];
+
+  // Add detected tags (skipping low-value ones) without removing what's already there
+  const toAdd = detected.filter((t) => !LOW_VALUE_TAGS.has(t));
+  const merged = [...existing];
+  for (const t of toAdd) {
+    if (!merged.some((x) => x.toLowerCase() === t.toLowerCase())) merged.push(t);
+  }
+  tagsInput.value = merged.slice(0, 10).join(", ");
+
+  const siteTitle = cleanTitle(site && site.title);
+  const titles = [siteTitle, site && site.headline && site.headline.length <= 60 ? site.headline : ""].filter(Boolean);
+  suggestState = {
+    titles: [...new Set(titles)],
+    tags: candidates,
+    summaries: buildSummaries(titleInput.value.trim() || siteTitle, merged, site),
+  };
+
+  // Fill the summary only if it's empty (never overwrite your own text)
+  if (!summaryInput.value.trim() && suggestState.summaries.length) {
+    summaryInput.value = suggestState.summaries[0].text;
+  }
+
+  renderSuggestions();
+  const found = detected.filter((t) => !LOW_VALUE_TAGS.has(t));
+  suggestStatus.innerText =
+    (found.length ? `Detected: ${found.join(", ")}. ` : "No extra technologies detected. ") +
+    (notes.length ? notes.join(" ") : "Tap the chips to adjust.");
+  suggestBtn.disabled = false;
+}
+
+if (suggestBtn) {
+  suggestBtn.addEventListener("click", runSuggestions);
+  tagsInput.addEventListener("input", renderSuggestions);
+  titleInput.addEventListener("input", renderSuggestions);
+
+  const handleChip = (e) => {
+    const el = e.target.closest("[data-kind]");
+    if (!el) return;
+    const kind = el.getAttribute("data-kind");
+    if (kind === "title") {
+      titleInput.value = el.getAttribute("data-value");
+    } else if (kind === "tag") {
+      const value = el.getAttribute("data-value");
+      const cur = normalizeTags(tagsInput.value);
+      const idx = cur.findIndex((x) => x.toLowerCase() === value.toLowerCase());
+      if (idx >= 0) cur.splice(idx, 1); else cur.push(value);
+      tagsInput.value = cur.join(", ");
+    } else if (kind === "summary") {
+      const s = suggestState.summaries[Number(el.getAttribute("data-i"))];
+      if (s) summaryInput.value = s.text;
+    }
+    renderSuggestions();
+  };
+  [titleSuggest, tagsSuggest, summarySuggest].forEach((c) => c.addEventListener("click", handleChip));
+}

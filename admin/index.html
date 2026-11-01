@@ -6,7 +6,7 @@
   <title>Admin Dashboard | Portfolio Manager</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;1,400&family=Montserrat:wght@600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css" />
   <link rel="icon" type="image/svg+xml" href="../favicon.svg?v=2" />
   <link rel="alternate icon" href="../favicon.svg" />
@@ -66,6 +66,21 @@
             <p id="formSubtitle">Select a category to customize fields and upload media</p>
           </div>
 
+          <!-- Import from GitHub -->
+          <div class="gh-import">
+            <div class="gh-import-head">
+              <strong>Import from GitHub</strong>
+              <span class="sync-meta">Pick a repo and the form below fills itself in</span>
+            </div>
+            <div class="gh-import-row">
+              <input type="text" id="ghUsername" placeholder="GitHub username" autocomplete="off" />
+              <button type="button" id="ghLoadBtn" class="btn btn-secondary">Load repos</button>
+            </div>
+            <label class="gh-fork-toggle"><input type="checkbox" id="ghHideForks" checked /> Hide forks</label>
+            <div id="ghStatus" class="sync-status"></div>
+            <div id="ghRepoList" class="gh-repo-list"></div>
+          </div>
+
           <form id="projectForm" class="form-stack">
             <input type="hidden" id="projectId" value="" />
 
@@ -82,21 +97,30 @@
             <div class="input-group">
               <label for="title">Project Title *</label>
               <input type="text" id="title" placeholder="e.g. Realtime Analytics Hub" required />
+              <div id="titleSuggest" class="sg-row"></div>
             </div>
 
             <div class="input-group">
               <label for="tags" id="tagsLabel">Tech Stack (comma-separated)</label>
               <input type="text" id="tags" placeholder="React, TypeScript, Supabase, Tailwind" />
+              <div id="tagsSuggest" class="sg-row"></div>
             </div>
 
             <div class="input-group">
               <label for="summary">Brief Summary *</label>
               <textarea id="summary" rows="3" placeholder="Explain what problem this solves and key achievements..." required></textarea>
+              <div id="summarySuggest" class="sg-col"></div>
             </div>
 
             <div class="input-group">
               <label for="demoUrl" id="demoUrlLabel">Live Application URL</label>
               <input type="url" id="demoUrl" placeholder="https://..." />
+              <div class="shot-row">
+                <button type="button" id="captureShotBtn" class="btn btn-secondary">📸 Capture landing page screenshot</button>
+                <button type="button" id="suggestBtn" class="btn btn-secondary">✨ Detect stack & suggest details</button>
+                <span id="shotStatus" class="sync-meta"></span>
+                <span id="suggestStatus" class="sync-meta"></span>
+              </div>
             </div>
 
             <div class="input-group">
@@ -144,6 +168,26 @@
 
           <div id="projectList" class="projects-scrollable">
             <div class="loading-state">Loading records...</div>
+          </div>
+          
+          <div class="sync-panel">
+            <div class="panel-header" style="margin-top:2rem;">
+              <h3>Social Feed Sync</h3>
+              <p>Pull your latest Facebook &amp; Instagram posts into the website</p>
+            </div>
+            <div class="sync-row">
+              <div><strong>Facebook + Instagram</strong><div class="sync-meta" id="lastSyncMeta">Last sync: checking…</div></div>
+              <button type="button" id="syncSocialBtn" class="btn btn-primary">Sync now</button>
+            </div>
+            <div class="sync-status" id="syncStatus"></div>
+          </div>
+
+          <div class="sync-panel">
+            <div class="panel-header" style="margin-top:2rem;">
+              <h3>Choose Posts to Display</h3>
+              <p>Toggle which synced posts appear on your website</p>
+            </div>
+            <div id="socialPostsList" class="post-picker"></div>
           </div>
         </section>
 
